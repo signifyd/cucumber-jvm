@@ -6,8 +6,10 @@ import io.cucumber.plugin.event.Result;
 import io.cucumber.plugin.event.SnippetsSuggestedEvent;
 import io.cucumber.plugin.event.Status;
 import io.cucumber.plugin.event.TestCaseFinished;
+import io.opentracing.util.GlobalTracer;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -59,6 +61,14 @@ public final class TestCaseResultObserver implements AutoCloseable {
             return;
         }
         Throwable error = result.getError();
+
+        ArrayList<StackTraceElement> staketrace = new ArrayList<StackTraceElement>(
+            Arrays.asList(error.getStackTrace()));
+        staketrace.add(
+            new StackTraceElement("Jaeger", "Precommit",
+                GlobalTracer.get().activeSpan().context().toTraceId(), 0));
+        error.setStackTrace(staketrace.toArray(new StackTraceElement[staketrace.size()]));
+
         if (status.is(SKIPPED) && error == null) {
             Throwable throwable = testCaseSkipped.get();
             throw new TestCaseFailed(throwable);
